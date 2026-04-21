@@ -8,6 +8,7 @@ require (
 	github.com/corazawaf/coraza/v3 v3.7.0
 	github.com/getkin/kin-openapi v0.135.0
 	github.com/prometheus/client_golang v1.23.2
+	golang.org/x/net v0.52.0
 	golang.org/x/text v0.36.0
 	gopkg.in/yaml.v3 v3.0.1
 )
@@ -183,7 +184,6 @@ require (
 	golang.org/x/crypto/x509roots/fallback v0.0.0-20260213171211-a408498e5541 // indirect
 	golang.org/x/exp v0.0.0-20251023183803-a4bb9ffd2546 // indirect
 	golang.org/x/mod v0.34.0 // indirect
-	golang.org/x/net v0.52.0 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
 	golang.org/x/sys v0.42.0 // indirect

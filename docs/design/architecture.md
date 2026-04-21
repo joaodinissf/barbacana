@@ -160,6 +160,8 @@ Each route compiles to a short, fixed Caddy handler list:
 
 `rewrite` runs before `barbacana` so OpenAPI validation and CRS evaluation see the rewritten path (the path the upstream sees), not the original external path.
 
+Synthetic routes generated from top-level `redirect_hosts` are the one exception: they emit a single `static_response` handler with no `rewrite`, no `barbacana`, and no `reverse_proxy`. The redirect terminates at Caddy with a `301` and never reaches the upstream, and the redirected canonical request goes through the full chain on the next hop, so the bypass is safe.
+
 Every stage from the request lifecycle above runs inside the single `barbacana` handler (`http.handlers.barbacana`, implemented in `internal/pipeline/handler.go`). The handler calls the protection packages directly in a hard-coded order — there is no per-stage Caddy module registration. The stages executed by the handler, in order, are:
 
 ```

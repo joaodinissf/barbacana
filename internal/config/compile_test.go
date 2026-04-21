@@ -273,6 +273,69 @@ func TestCompileReverseProxyDisablesUpstreamCompression(t *testing.T) {
 	}
 }
 
+func TestCompileRedirectHosts(t *testing.T) {
+	c := &Config{
+		Version:       "v1alpha1",
+		Host:          "example.com",
+		RedirectHosts: []string{"www.example.com"},
+	}
+	c.Routes = []Route{{Upstream: "http://app:8000", UpstreamTimeout: "30s"}}
+	applyDefaults(c)
+
+	raw, err := Compile(c, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	routes := extractRoutes(t, got)
+	if len(routes) != 2 {
+		t.Fatalf("expected 2 routes (redirect + app), got %d", len(routes))
+	}
+	redirect := routes[0]
+	match := redirect["match"].([]any)[0].(map[string]any)
+	hosts := match["host"].([]any)
+	if len(hosts) != 1 || hosts[0] != "www.example.com" {
+		t.Errorf("redirect route host = %v, want [www.example.com]", hosts)
+	}
+	handle := redirect["handle"].([]any)[0].(map[string]any)
+	if handle["handler"] != "static_response" {
+		t.Errorf("handler = %v, want static_response", handle["handler"])
+	}
+	if handle["status_code"] != "301" {
+		t.Errorf("status_code = %v, want 301", handle["status_code"])
+	}
+	headers := handle["headers"].(map[string]any)
+	location := headers["Location"].([]any)
+	if len(location) != 1 || location[0] != "https://example.com{http.request.uri}" {
+		t.Errorf("Location = %v", location)
+	}
+}
+
+func TestCompileRedirectHostsNotEmittedWithoutHost(t *testing.T) {
+	c := &Config{
+		Version:       "v1alpha1",
+		Port:          8080,
+		RedirectHosts: []string{"www.example.com"},
+	}
+	c.Routes = []Route{{Upstream: "http://app:8000", UpstreamTimeout: "30s"}}
+
+	raw, err := Compile(c, nil)
+	if err != nil {
+		t.Fatal(err)
+	}
+	var got map[string]any
+	if err := json.Unmarshal(raw, &got); err != nil {
+		t.Fatal(err)
+	}
+	routes := extractRoutes(t, got)
+	if len(routes) != 1 {
+		t.Errorf("redirect route should not be emitted without host, got %d routes", len(routes))
+	}
+}
+
 func extractRoutes(t *testing.T, cfg map[string]any) []map[string]any {
 	t.Helper()
 	apps := cfg["apps"].(map[string]any)

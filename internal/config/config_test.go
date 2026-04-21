@@ -570,6 +570,76 @@ routes:
 	}
 }
 
+func TestValidateRedirectHostsErrors(t *testing.T) {
+	cases := []struct {
+		name string
+		yaml string
+		want string
+	}{
+		{
+			name: "requires host",
+			yaml: "version: v1alpha1\nredirect_hosts: [www.example.com]\nroutes:\n  - upstream: http://app:8000\n",
+			want: "redirect_hosts requires",
+		},
+		{
+			name: "overlap with host",
+			yaml: "version: v1alpha1\nhost: example.com\nredirect_hosts: [example.com]\nroutes:\n  - upstream: http://app:8000\n",
+			want: "same as the primary host",
+		},
+		{
+			name: "empty hostname in list",
+			yaml: "version: v1alpha1\nhost: example.com\nredirect_hosts: [\"\", www.example.com]\nroutes:\n  - upstream: http://app:8000\n",
+			want: "empty hostname",
+		},
+		{
+			name: "case-equivalent overlap with host",
+			yaml: "version: v1alpha1\nhost: example.com\nredirect_hosts: [Example.com]\nroutes:\n  - upstream: http://app:8000\n",
+			want: "same as the primary host",
+		},
+		{
+			name: "duplicate hostname",
+			yaml: "version: v1alpha1\nhost: example.com\nredirect_hosts: [www.example.com, WWW.example.com]\nroutes:\n  - upstream: http://app:8000\n",
+			want: "duplicate hostname",
+		},
+		{
+			name: "invalid hostname syntax",
+			yaml: "version: v1alpha1\nhost: example.com\nredirect_hosts: [\"bad host!\"]\nroutes:\n  - upstream: http://app:8000\n",
+			want: "not a valid hostname",
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			_, err := loadYAMLErr(tc.yaml)
+			if err == nil {
+				t.Fatal("expected validation error, got nil")
+			}
+			if !strings.Contains(err.Error(), tc.want) {
+				t.Errorf("error should contain %q, got: %v", tc.want, err)
+			}
+			if tc.name == "empty hostname in list" && strings.Contains(err.Error(), "same as the primary host") {
+				t.Errorf("empty hostname should not also trigger overlap error, got: %v", err)
+			}
+		})
+	}
+}
+
+func TestLoadRedirectHosts(t *testing.T) {
+	yaml := `
+version: v1alpha1
+host: example.com
+redirect_hosts: [www.example.com, old.example.com]
+routes:
+  - upstream: http://app:8000
+`
+	c := loadYAML(t, yaml)
+	if len(c.RedirectHosts) != 2 {
+		t.Fatalf("want 2 redirect_hosts, got %d", len(c.RedirectHosts))
+	}
+	if c.RedirectHosts[0] != "www.example.com" || c.RedirectHosts[1] != "old.example.com" {
+		t.Errorf("redirect_hosts = %v", c.RedirectHosts)
+	}
+}
+
 func TestParseByteSize(t *testing.T) {
 	cases := []struct {
 		input string

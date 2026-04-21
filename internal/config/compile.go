@@ -59,7 +59,23 @@ func proxyServer(c *Config, resolved []Resolved) map[string]any {
 	mode1Host := c.Host
 	mode3 := c.Port != 0
 
-	routes := make([]map[string]any, 0, len(c.Routes))
+	routes := make([]map[string]any, 0, len(c.Routes)+1)
+
+	if len(c.RedirectHosts) > 0 && c.Host != "" {
+		routes = append(routes, map[string]any{
+			"match": []map[string]any{{
+				"host": c.RedirectHosts,
+			}},
+			"handle": []map[string]any{{
+				"handler":     "static_response",
+				"status_code": "301",
+				"headers": map[string]any{
+					"Location": []string{"https://" + c.Host + "{http.request.uri}"},
+				},
+			}},
+		})
+	}
+
 	for i, r := range c.Routes {
 		// Use the resolved route ID (which handles auto-generation from paths).
 		routeID := r.ID

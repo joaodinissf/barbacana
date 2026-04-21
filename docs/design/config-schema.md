@@ -14,6 +14,7 @@ data_dir: "/data/barbacana"    # optional, default "/data/barbacana"
 metrics_port: 9090             # optional, default 0 (disabled)
 health_port: 8081              # optional, default 0 (disabled)
 routes_dir: ""                 # optional, phase-2 routes.d directory (see below)
+redirect_hosts: [www.example.com]  # optional, 301 to host (Mode 1 only)
 
 global:
   # defaults applied to every route unless the route overrides
@@ -26,15 +27,16 @@ Go types (`internal/config/types.go`):
 
 ```go
 type Config struct {
-    Version     string  `yaml:"version"`
-    Host        string  `yaml:"host"`
-    Port        int     `yaml:"port"`
-    DataDir     string  `yaml:"data_dir"`
-    MetricsPort int     `yaml:"metrics_port"`
-    HealthPort  int     `yaml:"health_port"`
-    RoutesDir   string  `yaml:"routes_dir"`
-    Global      Global  `yaml:"global"`
-    Routes      []Route `yaml:"routes"`
+    Version       string   `yaml:"version"`
+    Host          string   `yaml:"host"`
+    Port          int      `yaml:"port"`
+    DataDir       string   `yaml:"data_dir"`
+    MetricsPort   int      `yaml:"metrics_port"`
+    HealthPort    int      `yaml:"health_port"`
+    RoutesDir     string   `yaml:"routes_dir"`
+    RedirectHosts []string `yaml:"redirect_hosts"`
+    Global        Global   `yaml:"global"`
+    Routes        []Route  `yaml:"routes"`
 }
 ```
 
@@ -49,6 +51,7 @@ type Config struct {
 | `metrics_port` | no | `0` (disabled) | integer 0–65535; `0` disables the listener; when non-zero, must differ from `port` and `health_port` |
 | `health_port` | no | `0` (disabled) | integer 0–65535; `0` disables the listener; when non-zero, must differ from `port` and `metrics_port` |
 | `routes_dir` | no | `""` (disabled) | directory containing `*.yaml` route files to load in addition to `routes:` — see "Phase 2: routes.d/*.yaml loading" below |
+| `redirect_hosts` | no | `[]` (disabled) | each entry must be non-empty and differ from `host`; requires `host` (Mode 1 only); emits a 301 to `host` preserving path and query |
 | `global` | no | see below | — |
 | `routes` | yes | — | at least one route |
 
@@ -77,6 +80,8 @@ host: api.example.com
 routes:
   - upstream: http://api:8000
 ```
+
+Set `redirect_hosts` to issue a permanent (`301`) redirect from alternate hostnames to the canonical `host`, preserving path and query. Common case: `redirect_hosts: [www.example.com]` with `host: example.com`. Caddy provisions certificates for the redirect hostnames automatically. Mode 1 only — Modes 2 and 3 have no canonical `host` to point at.
 
 **Mode 2 — Multi-host, auto-TLS.** Omit `host`. Every route supplies `match.hosts`. Caddy provisions one certificate per hostname, serves HTTPS on `:443`, and redirects HTTP on `:80`. If any route has `match.hosts`, **every** route must have `match.hosts` (routes without `match.hosts` would become ambiguous catch-alls). `port` must not be set.
 

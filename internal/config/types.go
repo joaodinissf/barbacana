@@ -17,15 +17,16 @@ const (
 )
 
 type Config struct {
-	Version     string  `yaml:"version"`
-	Host        string  `yaml:"host"`
-	Port        int     `yaml:"port"`
-	DataDir     string  `yaml:"data_dir"`
-	MetricsPort int     `yaml:"metrics_port"`
-	HealthPort  int     `yaml:"health_port"`
-	RoutesDir   string  `yaml:"routes_dir"`
-	Global      Global  `yaml:"global"`
-	Routes      []Route `yaml:"routes"`
+	Version       string   `yaml:"version"`
+	Host          string   `yaml:"host"`
+	Port          int      `yaml:"port"`
+	DataDir       string   `yaml:"data_dir"`
+	MetricsPort   int      `yaml:"metrics_port"`
+	HealthPort    int      `yaml:"health_port"`
+	RoutesDir     string   `yaml:"routes_dir"`
+	RedirectHosts []string `yaml:"redirect_hosts"`
+	Global        Global   `yaml:"global"`
+	Routes        []Route  `yaml:"routes"`
 }
 
 type Global struct {

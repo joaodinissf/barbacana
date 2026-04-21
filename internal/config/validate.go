@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"golang.org/x/net/idna"
+
 	"github.com/barbacana-waf/barbacana/internal/protections"
 )
 
@@ -21,6 +23,7 @@ func validate(c *Config) error {
 		add(fmt.Sprintf("version: expected %q, got %q", "v1alpha1", c.Version))
 	}
 	validateDeploymentMode(c, &errs)
+	validateRedirectHosts(c, &errs)
 	validatePorts(c, &errs)
 	validateDataDir(c.DataDir, &errs)
 	if len(c.Routes) == 0 {
@@ -467,6 +470,43 @@ func validateDeploymentMode(c *Config, errs *[]string) {
 	if len(routesWith) > 0 && len(routesWithout) > 0 {
 		add(fmt.Sprintf(`route %s has no match.hosts but route %s does — add match.hosts to route %s, repeating the host for multiple routes is fine, or add "host" at the top level if all routes share the same host`,
 			routesWithout[0], routesWith[0], routesWithout[0]))
+	}
+}
+
+// Mode 1 only: the redirect emits a Location pointing at c.Host, which is
+// unset (and so meaningless) in Modes 2 and 3. Hostnames are compared
+// case-insensitively because DNS names are case-insensitive — `Example.com`
+// and `example.com` resolve to the same name and would otherwise become
+// silent self-redirects.
+func validateRedirectHosts(c *Config, errs *[]string) {
+	if len(c.RedirectHosts) == 0 {
+		return
+	}
+	add := func(msg string) { *errs = append(*errs, msg) }
+	if c.Host == "" {
+		add(`redirect_hosts requires a top-level "host" (Mode 1 auto-TLS)`)
+	}
+	primary := strings.ToLower(c.Host)
+	seen := map[string]bool{}
+	for _, rh := range c.RedirectHosts {
+		if rh == "" {
+			add("redirect_hosts: empty hostname")
+			continue
+		}
+		norm, err := idna.Lookup.ToASCII(rh)
+		if err != nil {
+			add(fmt.Sprintf("redirect_hosts: %q is not a valid hostname: %v", rh, err))
+			continue
+		}
+		norm = strings.ToLower(norm)
+		if seen[norm] {
+			add(fmt.Sprintf("redirect_hosts: duplicate hostname %q", rh))
+			continue
+		}
+		seen[norm] = true
+		if norm == primary {
+			add(fmt.Sprintf("redirect_hosts: %q is the same as the primary host", rh))
+		}
 	}
 }
 
